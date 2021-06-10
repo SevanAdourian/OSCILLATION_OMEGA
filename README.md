@@ -10,7 +10,7 @@ mkdir build\
 cd build\
 cmake -DCMAKE_Fortran_COMPILER=ifort ../ # if intel compiler\
 cmake -DCMAKE_Fortran_COMPILER=gfortran ../ # if gnu compiler\
-make\
+make
 
 2. Running the code\
 ./oscillation_omega
