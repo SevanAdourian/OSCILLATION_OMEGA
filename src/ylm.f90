@@ -33,7 +33,9 @@ contains
     call lgndr(l0,cost,sint,x,dx)
     mm=real(m)
     imphi = cmplx(0.0,mm*phi)
-    yval=exp(imphi)*x(m+1)
+    ! TENTATIVE, changing exp to zexp to make sure that the types match
+    ! yval=((-1)**m) *exp(imphi)*x(m+1)
+    yval=((-1)**m) *zexp(imphi)*x(m+1)
     if (msign.lt.0) yval=conjg(yval)*(-1.**msign)
 
     return

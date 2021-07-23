@@ -39,7 +39,9 @@ contains
     do i = 1, NR
        read(iomod,*) radius(:) !HL
        rad_norm(i-j+1) = radius(1)/R_EARTH
-       rho_1d(i-j+1) = radius(2)
+       ! NON-DIMENSIONALIZE RHO AS WELL
+       ! rho_1d(i-j+1) = radius(2)
+       rho_1d(i-j+1) = radius(2)/RHO_AV
     enddo
 
     close(iomod)
@@ -49,36 +51,46 @@ contains
 
 
 
-  subroutine get_delta_rho(fname_rho_ylm_re, fname_rho_ylm_im, &
-       l, m, delta_rho)
+  subroutine get_delta_rho(delta_rho_mat, fname_rho_ylm_re, fname_rho_ylm_im, lmax)
     !---------------------------------------
     !
     ! reads the rho perturbation due to 3D
     ! lateral heterogeneties
     !
+    ! <SA> 06/2021 Returns a matrix for the entire layer instead of a specific line,
+    ! to avoid I/O overload.
+    ! </SA>
     implicit none
     !
     character, intent(in) :: fname_rho_ylm_im*100
     character, intent(in) :: fname_rho_ylm_re*100
-    integer, intent(in) :: l, m
+    ! integer, intent(in) :: l, m
+    integer, intent(in) :: lmax
 
-    complex, intent(out) :: delta_rho
+    complex, intent(out) :: delta_rho_mat(0:lmax,0:lmax)
 
     integer :: ii
-    real*8  :: mat_im(0:19), mat_re(0:19)
+    real*8  :: mat_im(0:lmax,0:lmax), mat_re(0:lmax,0:lmax)
 
     open(1,file=fname_rho_ylm_re,status='old',form='formatted',action='read')
     open(2,file=fname_rho_ylm_im,status='old',form='formatted',action='read')
 
-    do ii = 0,l-1
-       read(1,*)
-       read(2,*)
-    enddo
+    do ii = 0,lmax
+       read(1,*) mat_re(ii,:)
+       read(2,*) mat_im(ii,:)
+    end do
 
-    read(1,*) mat_re
-    read(2,*) mat_im
+    delta_rho_mat = cmplx(mat_re,mat_im)
+    
+    ! do ii = 0,l-1
+    !    read(1,*)
+    !    read(2,*)
+    ! enddo
 
-    delta_rho = cmplx(mat_re(m), mat_im(m))
+    ! read(1,*) mat_re
+    ! read(2,*) mat_im
+
+    ! delta_rho = cmplx(mat_re(m), mat_im(m))
 
     close(1)
     close(2)
@@ -86,65 +98,24 @@ contains
     return
   end subroutine get_delta_rho
 
-  ! subroutine find_disc(model_file, disc, rdisc, ndisc, NR)
+  subroutine get_interpolate_rho(rho_value, rho_1d, rad_norm, lat, lon, depth)
+    !
+    ! Interpolates all the density for any lat lon depth in order to compute
+    ! an integral on consecutive cylinders without depending on the spherical
+    ! geometry of the model and the problem.
+    !
+    implicit none
+    !
+    ! Normalize depth
+    r_norm = depth/R_EARTH
+    if (r_norm > 1) then
+       exit
+    end if
+    !
+    ! Find the index layer
 
-  !   implicit none
-
-  !   character, intent(in) :: model_file*100
-  !   integer, intent(out) :: ndisc, NR
-  !   integer, allocatable, intent(out) :: disc(:)
-  !   real*8, allocatable, intent(out) :: rdisc(:)
-  !   !
-  !   real*8 :: radius_last,radius,eps
-  !   integer :: jdisc,iomod,i
-  !   character*80 :: junk ! HL
-  !   double precision :: dummy(3)
-
-  !   ! HL changed model format
-  !   ! no need for '.dk' files, just '.md' files
-
-  !   radius_last = -1.0
-  !   eps = 1.0d-8
-  !   jdisc = 0
-  !   iomod = 11
-  !   open(iomod,file=model_file,status='old')
-  !   ! First pass to determine the number of discontinuities
-  !   read(iomod,*) junk !HL
-  !   read(iomod,*) dummy !HL, SA
-  !   read(iomod,*) dummy !HL, SA
-
-  !   NR = int(dummy(1))
-
-  !   do i = 1, NR
-  !      read(iomod,*) radius !HL
-  !      if (abs(radius-radius_last) .lt. eps) then
-  !         jdisc = jdisc + 1
-  !      end if
-  !      radius_last = radius
-  !   enddo
-  !   ndisc = jdisc
-
-  !   allocate(disc(ndisc))
-  !   allocate(rdisc(ndisc))
-
-  !   ! 2nd pass to fill in the radii of the discontinuities
-  !   jdisc = 0
-  !   radius_last = -1.0
-
-  !   rewind(iomod)
-  !   read(iomod,*) junk !HL
-  !   read(iomod,*) junk !HL
-  !   read(iomod,*) junk !HL
-  !   do i = 1, NR
-  !      read(iomod,*) radius !HL
-  !      if (abs(radius-radius_last) .lt. eps) then
-  !         jdisc = jdisc + 1
-  !         rdisc(jdisc) = radius
-  !         disc(jdisc) = i - 1
-  !      endif
-  !      radius_last = radius
-  !   enddo
-  !   close(iomod)
-
-  ! end subroutine find_disc
+    ! 
+    
+  end subroutine get_interpolate_rho
+    
 end module read_model

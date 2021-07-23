@@ -1,0 +1,9 @@
+/Users/sevan/Documents/PhD/Research/OMEGA_PHD/scripts/FORTRAN/OMEGA_OSCILLATION/build/CMakeFiles/rebuild_cache.dir
+/Users/sevan/Documents/PhD/Research/OMEGA_PHD/scripts/FORTRAN/OMEGA_OSCILLATION/build/CMakeFiles/edit_cache.dir
+/Users/sevan/Documents/PhD/Research/OMEGA_PHD/scripts/FORTRAN/OMEGA_OSCILLATION/build/CMakeFiles/volumetric_integral.dir
+/Users/sevan/Documents/PhD/Research/OMEGA_PHD/scripts/FORTRAN/OMEGA_OSCILLATION/build/CMakeFiles/read_model.dir
+/Users/sevan/Documents/PhD/Research/OMEGA_PHD/scripts/FORTRAN/OMEGA_OSCILLATION/build/CMakeFiles/gravitational_potential.dir
+/Users/sevan/Documents/PhD/Research/OMEGA_PHD/scripts/FORTRAN/OMEGA_OSCILLATION/build/CMakeFiles/oscillation_omega.dir
+/Users/sevan/Documents/PhD/Research/OMEGA_PHD/scripts/FORTRAN/OMEGA_OSCILLATION/build/CMakeFiles/discontinuities.dir
+/Users/sevan/Documents/PhD/Research/OMEGA_PHD/scripts/FORTRAN/OMEGA_OSCILLATION/build/CMakeFiles/legendre_quadrature.dir
+/Users/sevan/Documents/PhD/Research/OMEGA_PHD/scripts/FORTRAN/OMEGA_OSCILLATION/build/CMakeFiles/ylm.dir

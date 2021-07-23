@@ -1,0 +1,1 @@
+/usr/local/bin/gfortran  -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX10.15.sdk -dynamiclib -Wl,-headerpad_max_install_names -o library/libylm.dylib -install_name @rpath/libylm.dylib CMakeFiles/ylm.dir/src/ylm.f90.o 

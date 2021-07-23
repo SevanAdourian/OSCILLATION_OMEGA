@@ -39,7 +39,7 @@ add_fortran_library(gravitational_potential SHARED src/compute_gravitational_pot
 add_fortran_library(volumetric_integral SHARED src/compute_volumetric_integral.f90)
 
 target_link_libraries(gravitational_potential discontinuities ylm read_model)
-target_link_libraries(volumetric_integral discontinuities legendre_quadrature)
+target_link_libraries(volumetric_integral gravitational_potential legendre_quadrature)
 
 add_executable(${TARGET} ${SOURCE_FILES})
 target_link_libraries(${TARGET} volumetric_integral gravitational_potential)

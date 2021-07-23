@@ -1,0 +1,1 @@
+/usr/local/bin/gfortran  -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX10.15.sdk -dynamiclib -Wl,-headerpad_max_install_names -o library/libdiscontinuities.dylib -install_name @rpath/libdiscontinuities.dylib CMakeFiles/discontinuities.dir/src/discontinuities.f90.o 
