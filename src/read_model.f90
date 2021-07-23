@@ -98,24 +98,24 @@ contains
     return
   end subroutine get_delta_rho
 
-  subroutine get_interpolate_rho(rho_value, rho_1d, rad_norm, lat, lon, depth)
+  ! subroutine get_interpolate_rho(rho_value, rho_1d, rad_norm, lat, lon, depth)
     !
     ! Interpolates all the density for any lat lon depth in order to compute
     ! an integral on consecutive cylinders without depending on the spherical
     ! geometry of the model and the problem.
     !
-    implicit none
+    ! implicit none
     !
     ! Normalize depth
-    r_norm = depth/R_EARTH
-    if (r_norm > 1) then
-       exit
-    end if
+    ! r_norm = depth/R_EARTH
+    ! if (r_norm > 1) then
+    !    exit
+    ! end if
     !
     ! Find the index layer
-
+    !
     ! 
     
-  end subroutine get_interpolate_rho
+  ! end subroutine get_interpolate_rho
     
 end module read_model
