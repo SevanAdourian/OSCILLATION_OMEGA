@@ -127,7 +127,7 @@ contains
     ! phi = phi_zero(nlayer) + chi_lm_ylm_sum
     phi = chi_lm_ylm_sum
     ! <SA> DEBUG
-    print*, "[compute_delta_phi]", phi
+    ! print*, "[compute_delta_phi]", phi
     return
 
   end subroutine compute_delta_phi
