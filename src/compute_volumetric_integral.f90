@@ -98,7 +98,7 @@ contains
     real*8 :: rho_lm
     complex*8 :: delta_rho(0:lmax_model,0:lmax_model)
     ! 
-    integer :: i, j, nlayer, l, m
+    integer :: i, j, nlayer, l, m,ii
     real*8 :: a, b, alpha, beta
     real*8, allocatable :: integral_lon(:)
     real*8 :: lat, lon
@@ -106,7 +106,7 @@ contains
     real*8, parameter :: PI = 3.1415927
 
     ! Parameters for the integration rule (move to arg of subroutine eventually)
-    order = 8
+    order = (lmax*2+1)
     kind = 1
     alpha = 0.d0
     beta = 0.d0
@@ -117,6 +117,14 @@ contains
     allocate(abs_int(order), w_int(order))
     call cgqf( order, kind, alpha, beta, a, b, abs_int, w_int)
 
+    ! <SA> DEBUG INTEGRATION
+    open(21,file="int_nodes.txt", form="formatted",status="replace")
+ 
+    do ii = 1,order
+       write(21,"(2F10.2)")abs_int(ii), w_int(ii)
+    end do
+    close(21)
+    ! </SA>
     ! Initialization
     allocate(integral_lon(NR))
     allocate(kernel_grav_all_l(1:NR,0:lmax))
@@ -126,35 +134,44 @@ contains
 
     ! Computation of the kernels for all l.
     call compute_kernel_grav(kernel_grav_all_l, rho_norm, rad, lmax, NR, ndisc, disc)
-    
+    ! <SA> DEBUG LATLON
+    open(41,file="lat_lon.txt",form="formatted",status="replace")
+
     ! Integration on the volume per se
     do nlayer = 331, NR-26
        ! Starting above the core mantle boundary as the core is 1D,
        ! hence making delta_phi = 0
-       ! Loop on longitude between -1 and 1 (transformation)
+       ! Get the kernel for all l for this specfic layer
        kernel_grav_all_l_nlayer = kernel_grav_all_l(nlayer,:)
        ! Get the density perturbation
        call get_delta_rho(delta_rho, nlayer, lmax_model)
-       if (nlayer .eq. 600) then
-          print*, 'coucou', nlayer
-          do l = 0,lmax
-             do m = 0,lmax
-                print*, l, m, delta_rho(l,m)
-             end do
-          end do          
-       end if
+       ! <SA> DEBUG
+       ! if (nlayer .eq. 600) then
+       !    print*, 'coucou', nlayer
+       !    do l = 0,lmax
+       !       do m = 0,lmax
+       !          print*, l, m, delta_rho(l,m)
+       !       end do
+       !    end do          
+       ! end if
+       ! </SA>
 
        print*, '[compute_volume_integral] layer', nlayer,'/',NR
+       ! Loop on longitude between -1 and 1 (transformation)
        do j = 1, 2*order
           lon = (j * PI / order) ! Make things cleaner here
           integral_lat = 0.d0
           do i = 1, order
              ! transform into geographical latitude (radians)
              lat = acos(abs_int(i))
+             if (nlayer .eq. 331)then
+                write(41,"(3F10.5)") abs_int(i),lat,lon
+             endif
              ! Compute delta phi, summed over l and m.
              call compute_delta_phi(del_phi, rho_lm, rho_norm, rad, delta_rho, &
                   kernel_grav_all_l_nlayer, lmax, nlayer, lat, lon, NR)
-             integral_lat = integral_lat + w_int(i) * rho_lm * del_phi
+             ! integral_lat = integral_lat + w_int(i) * rho_lm * del_phi
+             integral_lat = integral_lat + w_int(i) * del_phi
           end do ! longitude
           ! Sum over all latitudes of integration
           integral_lon(nlayer) = integral_lon(nlayer) + integral_lat 
@@ -164,6 +181,8 @@ contains
        print*, "[compute_volumetric_integral.f90]", integral_lon(nlayer)
     end do ! nlayer
 
+    ! <SA> DEBUG
+    close(41)
     ! Radial integration
     call intgrl_disc(integral_value,NR,rad(1:NR), disc,ndisc,1,NR,integral_lon(1:NR))
     integral_value = integral_value/2

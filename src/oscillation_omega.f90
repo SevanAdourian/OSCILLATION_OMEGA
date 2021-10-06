@@ -40,7 +40,7 @@ program main
   real*8 :: total_potential
   real*8 :: ACC_NORM
   real*8, parameter :: PI = 3.1415927, R_EARTH = 6371.d3, RHO_AV = 5510.d0, GRAV_CST = 6.67408d-11
-  integer :: lmax = 20
+  integer :: lmax = 6
   integer :: lmax_model = 20
 
   ! Kernel

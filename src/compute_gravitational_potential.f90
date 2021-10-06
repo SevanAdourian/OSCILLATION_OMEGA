@@ -196,7 +196,7 @@ contains
           integrd_1(1) = 0
 
           ! Integration over the radius
-          call intgrl_disc(k_g_lm_ind, NR,r(1:NR), disc,ndisc,1,ii,integrd_1(1:NR))
+          call intgrl_disc(k_g_lm_ind, NR,r(1:NR), disc,ndisc,1,NR,integrd_1(1:NR))
           k_g_lm(ii,l) = k_g_lm_ind
           
           ! open(11,file="k_g_lm.txt",form="formatted")
