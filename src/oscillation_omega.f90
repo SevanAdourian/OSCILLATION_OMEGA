@@ -35,26 +35,21 @@ program main
 
   ! DEBUG
   real*8, allocatable :: phi_cmb(:,:)
-  real*8 :: dlon, dlat
-  integer :: ii, jj, nx, ny
   
   ! Integration
   real*8 :: total_potential
   real*8 :: ACC_NORM
   real*8, parameter :: PI = 3.1415927, R_EARTH = 6371.d3, RHO_AV = 5510.d0, GRAV_CST = 6.67408d-11
   integer :: lmax = 20
+  integer :: lmax_model = 20
 
-  ! lat_test = 45
-  ! lon_test = 45
-  nx = 91
-  ny = 180
-  dlat = 2
-  dlon = 2
-  nlayer = 2
+  ! Kernel
+  real*8, allocatable :: kernel_grav(:,:)
+  real*8 :: kernel_grav_r
   file_radius = '../../../../data/make_s20rts/rho_ulm/rad.dat'
   file_model_1d = '../../../../data/make_s20rts/isoprem808.md'
 
-  open(unit=10, file='phi_cmb.txt', ACTION="write", STATUS="replace")
+  open(unit=10, file='kernel.txt', ACTION="write", STATUS="replace")
 
   ! Initialize 1D Earth model and find dicontinuities
   call find_disc(file_model_1d, disc, rdisc, ndisc, NR)
@@ -65,6 +60,17 @@ program main
 
   ! Compute gravitational potential in unperturbed Earth
   call compute_phi_zero(phi_zero, g_zero, rho_1d, rad_norm, disc, ndisc, NR)
+
+  ! allocate(kernel_grav(NR,6))
+  ! kernel_grav(1,:) = 0.d0
+  ! do ii = 2,NR
+  !    do l = 1,6
+  !       call compute_kernel_grav(kernel_grav_r, rho_1d, rad_norm, ii, l, NR, ndisc, disc)
+  !       kernel_grav(ii,l) = kernel_grav_r
+  !    end do
+  !    write(10,"(6E10.2)")kernel_grav(ii,:) 
+  ! end do
+  ! deallocate(kernel_grav)
   !
   ! DEBUG CHECK THE GRAVITATIONAL POTENTIAL
   ! allocate(phi_cmb(nx,ny))
@@ -82,11 +88,14 @@ program main
   ! end do
   
   ! Compute the integral of the gravitational potential
-  call compute_grav_pot_volumetric_integral(total_potential, rho_1d, rho_prime, rad_norm,&
-       g_zero, lmax, disc, ndisc, NR)
+  call compute_grav_pot_volumetric_integral(total_potential, rho_1d, rad_norm,&
+       lmax, lmax_model, disc, ndisc, NR)
   ! TEMPORARY
-  ACC_NORM = (PI * GRAV_CST * RHO_AV * R_EARTH)
-  total_potential =  R_EARTH**4 * RHO_AV * ACC_NORM * &
+  ! ACC_NORM = (PI * GRAV_CST * RHO_AV * R_EARTH)
+  ! print*, R_EARTH**4 * RHO_AV * ACC_NORM*total_potential
+  ! total_potential =  R_EARTH**4 * RHO_AV * ACC_NORM * &
+  !      (4*total_potential/5.87d34) * (1.d0+5.87d34/7.12d37)
+  total_potential =  R_EARTH**5 * RHO_AV**2 * &
        (4*total_potential/5.87d34) * (1.d0+5.87d34/7.12d37)
 
   print*, total_potential

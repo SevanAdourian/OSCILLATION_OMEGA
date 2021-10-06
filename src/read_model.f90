@@ -51,7 +51,7 @@ contains
 
 
 
-  subroutine get_delta_rho(delta_rho_mat, fname_rho_ylm_re, fname_rho_ylm_im, lmax)
+  subroutine get_delta_rho(delta_rho_mat, nlayer, lmax_model)
     !---------------------------------------
     !
     ! reads the rho perturbation due to 3D
@@ -60,26 +60,43 @@ contains
     ! <SA> 06/2021 Returns a matrix for the entire layer instead of a specific line,
     ! to avoid I/O overload.
     ! </SA>
+    ! <SA> 10/2021 Moved the naming of the files here for better readability and ensure
+    ! that we access the files only once.
+    ! </SA>
     implicit none
     !
-    character, intent(in) :: fname_rho_ylm_im*100
-    character, intent(in) :: fname_rho_ylm_re*100
     ! integer, intent(in) :: l, m
-    integer, intent(in) :: lmax
+    integer, intent(in) :: lmax_model, nlayer
 
-    complex, intent(out) :: delta_rho_mat(0:lmax,0:lmax)
+    complex, intent(out) :: delta_rho_mat(0:lmax_model,0:lmax_model)
+    ! 
+    character :: fname_rho_ylm_im*100
+    character :: fname_rho_ylm_re*100
+    ! 
+    integer :: ii, nlayer_for_file
+    real*8  :: mat_im(0:lmax_model,0:lmax_model), mat_re(0:lmax_model,0:lmax_model)
 
-    integer :: ii
-    real*8  :: mat_im(0:lmax,0:lmax), mat_re(0:lmax,0:lmax)
+    nlayer_for_file = nlayer - 330
+    write(fname_rho_ylm_im,"(a,I3.3,a)")"../data/make_s20rts/rho_ulm/rho_ulm_im_lay",&
+         nlayer_for_file,".dat"
+    write(fname_rho_ylm_re,"(a,I3.3,a)")"../data/make_s20rts/rho_ulm/rho_ulm_re_lay",&
+         nlayer_for_file,".dat"
 
+    ! print*, file_rho_ylm_im, file_rho_ylm_re
     open(1,file=fname_rho_ylm_re,status='old',form='formatted',action='read')
     open(2,file=fname_rho_ylm_im,status='old',form='formatted',action='read')
 
-    do ii = 0,lmax
+    do ii = 0,lmax_model
        read(1,*) mat_re(ii,:)
        read(2,*) mat_im(ii,:)
     end do
 
+    ! Here we correct for the fact that delta_rho(0,0) in the files is supposed to be 0
+    ! but it is not because of some artifacts of S20RTS. Should be ok with any other model
+    ! as physically, delta_rho(0,0) should always be 0 as it would change the mass of the
+    ! Earth otherwise.
+    mat_re(0,:) = 0
+    mat_im(0,:) = 0
     delta_rho_mat = cmplx(mat_re,mat_im)
     
     ! do ii = 0,l-1

@@ -79,23 +79,27 @@ contains
   ! Because the gravitational potential is a 3D value, we need to call a function to calculate
   ! it at each lat/lon.
   
-  subroutine compute_grav_pot_volumetric_integral(integral_value, rho_norm, rho_prime, &
-       rad, g_zero, lmax, disc, ndisc, NR)
+  subroutine compute_grav_pot_volumetric_integral(integral_value, rho_norm, &
+       rad, lmax, lmax_model,disc, ndisc, NR)
 
     use legendre_quadrature
     implicit none
     !
-    integer, intent(in) :: NR, ndisc, lmax
+    integer, intent(in) :: NR, ndisc, lmax, lmax_model
     integer, allocatable, intent(in) :: disc(:)
-    real*8, allocatable, intent(in) :: rad(:), rho_norm(:), rho_prime(:), g_zero(:)
+    real*8, allocatable, intent(in) :: rad(:), rho_norm(:)
     !
     real*8, intent(out) :: integral_value
     !
     integer :: kind, order
     real*8, allocatable :: abs_int(:), w_int(:)
-    real*8 :: a, b, alpha, beta
+    real*8, allocatable :: kernel_grav_all_l_nlayer(:)
+    real*8, allocatable :: kernel_grav_all_l(:,:)
+    real*8 :: rho_lm
+    complex*8 :: delta_rho(0:lmax_model,0:lmax_model)
     ! 
-    integer :: i, j, nlayer
+    integer :: i, j, nlayer, l, m
+    real*8 :: a, b, alpha, beta
     real*8, allocatable :: integral_lon(:)
     real*8 :: lat, lon
     real*8 :: integral_lat, del_phi
@@ -115,12 +119,31 @@ contains
 
     ! Initialization
     allocate(integral_lon(NR))
+    allocate(kernel_grav_all_l(1:NR,0:lmax))
+    allocate(kernel_grav_all_l_nlayer(0:lmax))
     integral_value = 0.d0
     integral_lon(:) = 0.d0
 
+    ! Computation of the kernels for all l.
+    call compute_kernel_grav(kernel_grav_all_l, rho_norm, rad, lmax, NR, ndisc, disc)
+    
     ! Integration on the volume per se
-    do nlayer = 331, NR-26 ! Starting at 2 to avoid the singularity at the center
+    do nlayer = 331, NR-26
+       ! Starting above the core mantle boundary as the core is 1D,
+       ! hence making delta_phi = 0
        ! Loop on longitude between -1 and 1 (transformation)
+       kernel_grav_all_l_nlayer = kernel_grav_all_l(nlayer,:)
+       ! Get the density perturbation
+       call get_delta_rho(delta_rho, nlayer, lmax_model)
+       if (nlayer .eq. 600) then
+          print*, 'coucou', nlayer
+          do l = 0,lmax
+             do m = 0,lmax
+                print*, l, m, delta_rho(l,m)
+             end do
+          end do          
+       end if
+
        print*, '[compute_volume_integral] layer', nlayer,'/',NR
        do j = 1, 2*order
           lon = (j * PI / order) ! Make things cleaner here
@@ -128,14 +151,10 @@ contains
           do i = 1, order
              ! transform into geographical latitude (radians)
              lat = acos(abs_int(i))
-             ! call compute_delta_phi(del_phi,rho_norm, rad, rho_prime, lmax, &
-             !      nlayer-329, lat, lon, NR)
-             ! call compute_gravitational_potential(del_phi, rho_norm, rho_prime, rad, &
-             !      nlayer-329, lat, lon, disc, ndisc, NR)
-             call compute_delta_phi(del_phi, rho_norm, rad, rho_prime, g_zero, lmax, &
-                  nlayer-329, lat, lon, NR)
-             integral_lat = integral_lat + w_int(i) * del_phi
-             ! integral_lat = integral_lat + w_int(i) * func_to_integrate(nlayer)
+             ! Compute delta phi, summed over l and m.
+             call compute_delta_phi(del_phi, rho_lm, rho_norm, rad, delta_rho, &
+                  kernel_grav_all_l_nlayer, lmax, nlayer, lat, lon, NR)
+             integral_lat = integral_lat + w_int(i) * rho_lm * del_phi
           end do ! longitude
           ! Sum over all latitudes of integration
           integral_lon(nlayer) = integral_lon(nlayer) + integral_lat 
@@ -147,7 +166,14 @@ contains
 
     ! Radial integration
     call intgrl_disc(integral_value,NR,rad(1:NR), disc,ndisc,1,NR,integral_lon(1:NR))
+    integral_value = integral_value/2
     print*, "[compute_volumetric_integral.f90]",integral_value
+
+    deallocate(integral_lon)
+    deallocate(kernel_grav_all_l)
+    deallocate(kernel_grav_all_l_nlayer)
+    deallocate(abs_int, w_int)
+
     return
 
   end subroutine compute_grav_pot_volumetric_integral
