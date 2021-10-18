@@ -13,6 +13,7 @@ program main
   !-----------
   use gravitational_potential
   use volumetric_integral
+  use moment_of_inertia
   !
   implicit none
   !
@@ -37,10 +38,10 @@ program main
   real*8, allocatable :: phi_cmb(:,:)
   
   ! Integration
-  real*8 :: total_potential
+  real*8 :: total_potential, moment
   real*8 :: ACC_NORM
   real*8, parameter :: PI = 3.1415927, R_EARTH = 6371.d3, RHO_AV = 5510.d0, GRAV_CST = 6.67408d-11
-  integer :: lmax = 6
+  integer :: lmax = 16
   integer :: lmax_model = 20
 
   ! Kernel
@@ -61,6 +62,11 @@ program main
   ! Compute gravitational potential in unperturbed Earth
   call compute_phi_zero(phi_zero, g_zero, rho_1d, rad_norm, disc, ndisc, NR)
 
+  ! Compute moment of inertia
+  ! call compute_moment_of_inertia(moment, rho_1d, &
+  !      rad_norm, 1, NR-26, lmax, lmax_model, disc, ndisc, NR)
+
+  
   ! allocate(kernel_grav(NR,6))
   ! kernel_grav(1,:) = 0.d0
   ! do ii = 2,NR
@@ -99,6 +105,9 @@ program main
        (4*total_potential/5.87d34) * (1.d0+5.87d34/7.12d37)
 
   print*, total_potential
+  ! total_potential =  R_EARTH**5 * RHO_AV * moment
+
+  ! print*, total_potential
   !----------------------------------------
   ! PRINTING SPACE FOR DEBUGGING THE MAIN
 

@@ -174,10 +174,10 @@ contains
              integral_lat = integral_lat + w_int(i) * del_phi
           end do ! longitude
           ! Sum over all latitudes of integration
-          integral_lon(nlayer) = integral_lon(nlayer) + integral_lat 
+          integral_lon(nlayer) = integral_lon(nlayer) + integral_lat * (PI/order) 
        end do ! latitude
        ! Normalize the surface integral and multiply by dr**2 to prepare the radial integration
-       integral_lon(nlayer) = (PI/order) * integral_lon(nlayer) * rad(nlayer)**2
+       integral_lon(nlayer) = integral_lon(nlayer) * rad(nlayer)**2
        print*, "[compute_volumetric_integral.f90]", integral_lon(nlayer)
     end do ! nlayer
 
@@ -196,5 +196,7 @@ contains
     return
 
   end subroutine compute_grav_pot_volumetric_integral
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 end module volumetric_integral
