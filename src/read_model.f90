@@ -68,7 +68,7 @@ contains
     ! integer, intent(in) :: l, m
     integer, intent(in) :: lmax_model, nlayer
 
-    complex, intent(out) :: delta_rho_mat(0:lmax_model,0:lmax_model)
+    complex*16, intent(out) :: delta_rho_mat(0:lmax_model,0:lmax_model)
     ! 
     character :: fname_rho_ylm_im*100
     character :: fname_rho_ylm_re*100
@@ -115,24 +115,28 @@ contains
     return
   end subroutine get_delta_rho
 
-  ! subroutine get_interpolate_rho(rho_value, rho_1d, rad_norm, lat, lon, depth)
+  subroutine construct_rho_map(delta_rho_all_r, r_min, r_max, lmax_model)
     !
-    ! Interpolates all the density for any lat lon depth in order to compute
-    ! an integral on consecutive cylinders without depending on the spherical
-    ! geometry of the model and the problem.
+    implicit none
     !
-    ! implicit none
+    complex*16, intent(out), allocatable :: delta_rho_all_r(:,:,:)
     !
-    ! Normalize depth
-    ! r_norm = depth/R_EARTH
-    ! if (r_norm > 1) then
-    !    exit
-    ! end if
+    integer, intent(in) :: lmax_model, r_min, r_max
     !
-    ! Find the index layer
+    complex*16 :: delta_rho(0:lmax_model,0:lmax_model)
+    integer :: nlayer
     !
-    ! 
+    ! Allocating and initialize the output matrix
+    allocate(delta_rho_all_r(r_min:r_max,0:lmax_model,0:lmax_model))
+    delta_rho_all_r(:,:,:) = 0.d0
+    !
+    do nlayer = r_min, r_max
+       call get_delta_rho(delta_rho, nlayer, lmax_model)
+       delta_rho_all_r(nlayer,:,:) = delta_rho
+    end do 
     
-  ! end subroutine get_interpolate_rho
-    
+    return
+    !
+  end subroutine construct_rho_map
+  
 end module read_model

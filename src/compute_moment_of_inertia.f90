@@ -20,7 +20,8 @@ contains
     !
     real*8, intent(out) :: moment_of_inertia
     !
-    complex*8 :: delta_rho(0:lmax_model,0:lmax_model)
+    complex*16 :: delta_rho(0:lmax_model,0:lmax_model)
+    complex*16, allocatable :: delta_rho_all_r(:,:,:)
     !
     integer :: kind, order
     real*8, allocatable :: abs_int(:), w_int(:)
@@ -36,7 +37,7 @@ contains
 
     ! Parameters for the integration rule (move to arg of subroutine eventually - no need
     ! it just has to depend on l <SA>)
-    order = (lmax*2+1)
+    order = (6)
     kind = 1
     alpha = 0.d0
     beta = 0.d0
@@ -68,7 +69,8 @@ contains
     call intgrl_disc(radial_integrl_1,NR,rad(1:NR), disc,ndisc,layer_min,layer_max, &
          radial_integrd(1:NR))
     moment_of_inertia_radial = radial_integrl_1 * 8.d0 * PI / 3.d0
-    
+
+    call construct_rho_map(delta_rho_all_r, 331, 782, lmax_model)
     ! Integration on the volume per se
     if (layer_max > 331) then
        do nlayer = 331, layer_max
@@ -88,7 +90,7 @@ contains
                 lat = acos(abs_int(i))
                 ! Compute integrand of moment of inertia, summed over l and m.
                 call compute_moi_hetero(integrd, rho_norm, rad, delta_rho, &
-                     lmax, nlayer, lat, lon, NR)
+                     lmax, lmax_model, nlayer, lat, lon, NR)
                 integral_lat = integral_lat + w_int(i) * integrd
              end do ! latitude
              ! Sum over all latitudes of integration
@@ -120,19 +122,19 @@ contains
   end subroutine compute_moment_of_inertia
 
   subroutine compute_moi_hetero(integrd_sum, rho, r, delta_rho, &
-       lmax, nlayer, lat, lon, NR)
+       lmax, lmax_model, nlayer, lat, lon, NR)
     !
     implicit none
     !
-    integer, intent(in) :: lmax, nlayer, NR
+    integer, intent(in) :: lmax, nlayer, NR, lmax_model
     real*8, intent(in)  :: lat, lon
     real*8, allocatable, intent(in) :: rho(:), r(:)
-    complex*8, intent(in) :: delta_rho(:,:)
+    complex*16, intent(in) :: delta_rho(0:lmax_model,0:lmax_model)
     !
     real*8, intent(out) :: integrd_sum
     ! 
-    complex*8 :: integrd_lm
-    complex*8 :: y_lm
+    complex*16 :: integrd_lm
+    complex*16 :: y_lm
     real*8 :: integrd_m
     integer :: l, m
     

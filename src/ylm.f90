@@ -19,7 +19,7 @@ contains
     real*8, intent (in) :: clat
     real*8, intent (in) :: phi
     ! outputs
-    complex*8, intent(out) :: yval
+    complex*16, intent(out) :: yval
     ! others:
     integer :: m,l0
     real*8 :: cost,sint,mm
@@ -35,8 +35,8 @@ contains
     imphi = cmplx(0.0,mm*phi)
     ! TENTATIVE, changing exp to zexp to make sure that the types match
     ! yval=((-1)**m) *exp(imphi)*x(m+1)
-    yval=((-1)**m) *zexp(imphi)*x(m+1)
-    if (msign.lt.0) yval=conjg(yval)*(-1.**msign)
+    yval=((-1)**m) * zexp(imphi)*x(m+1)
+    if (msign.lt.0) yval=dconjg(yval)*(-1.**msign)
 
     return
 

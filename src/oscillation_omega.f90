@@ -36,12 +36,16 @@ program main
 
   ! DEBUG
   real*8, allocatable :: phi_cmb(:,:)
+  real*8 :: sig, sig_sq
   
   ! Integration
-  real*8 :: total_potential, moment
+  ! real*8 :: total_potential, moment
+  ! real*8 :: total_potential, moment
+  real*8 :: moment
+  real*8 :: total_potential
   real*8 :: ACC_NORM
   real*8, parameter :: PI = 3.1415927, R_EARTH = 6371.d3, RHO_AV = 5510.d0, GRAV_CST = 6.67408d-11
-  integer :: lmax = 16
+  integer :: lmax = 2
   integer :: lmax_model = 20
 
   ! Kernel
@@ -57,14 +61,14 @@ program main
 
   ! Get 1D Earth profile of density, and get its first spatial derivative
   call get_1d_rho(file_model_1d, rad_norm, rho_1d, NR, rdisc, ndisc)
-  call deriv(rho_1d,rho_prime,NR,rad_norm,ndisc,disc,s1,s2,s3)
+  ! call deriv(rho_1d,rho_prime,NR,rad_norm,ndisc,disc,s1,s2,s3)
 
   ! Compute gravitational potential in unperturbed Earth
-  call compute_phi_zero(phi_zero, g_zero, rho_1d, rad_norm, disc, ndisc, NR)
+  ! call compute_phi_zero(phi_zero, g_zero, rho_1d, rad_norm, disc, ndisc, NR)
 
   ! Compute moment of inertia
-  ! call compute_moment_of_inertia(moment, rho_1d, &
-  !      rad_norm, 1, NR-26, lmax, lmax_model, disc, ndisc, NR)
+  call compute_moment_of_inertia(moment, rho_1d, &
+       rad_norm, 1, NR-26, lmax, lmax_model, disc, ndisc, NR)
 
   
   ! allocate(kernel_grav(NR,6))
@@ -94,20 +98,28 @@ program main
   ! end do
   
   ! Compute the integral of the gravitational potential
-  call compute_grav_pot_volumetric_integral(total_potential, rho_1d, rad_norm,&
+  ! call compute_grav_pot_volumetric_integral(total_potential, rho_1d, rad_norm,&
+  ! lmax, lmax_model, disc, ndisc, NR)
+  print*, "entering the integral computation"
+  call compute_volumetric_integral_gravitational_energy(total_potential, rho_1d, rad_norm,&
        lmax, lmax_model, disc, ndisc, NR)
+  print*, "exited the integral computation"
   ! TEMPORARY
-  ! ACC_NORM = (PI * GRAV_CST * RHO_AV * R_EARTH)
+  ! print*, total_potential
+  ! stop
+  ACC_NORM = (PI * GRAV_CST * RHO_AV * R_EARTH)
   ! print*, R_EARTH**4 * RHO_AV * ACC_NORM*total_potential
   ! total_potential =  R_EARTH**4 * RHO_AV * ACC_NORM * &
   !      (4*total_potential/5.87d34) * (1.d0+5.87d34/7.12d37)
-  total_potential =  R_EARTH**5 * RHO_AV**2 * &
-       (4*total_potential/5.87d34) * (1.d0+5.87d34/7.12d37)
+  total_potential = ACC_NORM * RHO_AV * R_EARTH**3 * total_potential
 
-  print*, total_potential
-  ! total_potential =  R_EARTH**5 * RHO_AV * moment
+  sig_sq = (4*total_potential/5.87d34) * (1.d0+5.87d34/7.12d37)
 
+  sig = ((2*PI)/abs(sig_sq)**(0.5))/(86400*365)
   ! print*, total_potential
+  ! total_potential =  R_EARTH**3 * RHO_AV * total_potential
+
+  print*, "The period is: ", sig, " years"
   !----------------------------------------
   ! PRINTING SPACE FOR DEBUGGING THE MAIN
 

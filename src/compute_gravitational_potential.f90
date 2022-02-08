@@ -60,10 +60,14 @@ contains
     do i = 1,NR
        call intgrl_disc(integrl_1,NR,r(1:NR), disc,ndisc,1,i,integrd_1(1:NR))
        call intgrl_disc(integrl_2,NR,r(1:NR),disc,ndisc,i,NR,integrd_2(1:NR))
-       cste = (-4 *  PI * GRAV_CST) 
+       ! <SA> Non-dimensionalizing G as \pi\times G = 1
+       ! cste = (-4 *  PI * GRAV_CST)
+       cste = -4. 
        ! phi_zero(i) = cste * ( (integrl_1 / (r(i))) + integrl_2) * R_EARTH * R_EARTH
        phi_zero(i) = cste * ( (integrl_1 / (r(i))) + integrl_2) !* R_EARTH * R_EARTH
-       g_zero(i) = cste*integrl_1 / (r(i)*r(i)) / (PI * GRAV_CST)
+       ! <SA> Non-dimensionalizing G as \pi\times G = 1
+       ! g_zero(i) = cste*integrl_1 / (r(i)*r(i)) / (PI * GRAV_CST)
+       g_zero(i) = cste*integrl_1 / (r(i)*r(i))
        ! write(11,*)g_zero(i) * (PI * GRAV_CST * RHO_AV * R_EARTH)
     end do
 
@@ -74,15 +78,15 @@ contains
   end subroutine compute_phi_zero
 
   subroutine compute_delta_phi(del_phi_sum, rho_abs_lm, rho_norm, rad_norm, &
-       delta_rho, kern_grav_nlayer, lmax, nlayer, lat, lon, NR)
+       delta_rho, kern_grav_nlayer, lmax, lmax_model, nlayer, lat, lon, NR)
     !
     implicit none
     !
     real*8, allocatable, intent(in) :: rad_norm(:), rho_norm(:)
     real*8, allocatable, intent(in) :: kern_grav_nlayer(:)
     real*8, intent(in) :: lat, lon
-    complex*8, intent(in) :: delta_rho(:,:)
-    integer, intent(in) :: nlayer, lmax, NR
+    complex*16, intent(in) :: delta_rho(0:lmax_model,0:lmax_model)
+    integer, intent(in) :: nlayer, lmax, NR, lmax_model
     ! 
     real*8, intent(out) :: del_phi_sum
     real*8, intent(out) :: rho_abs_lm
@@ -90,13 +94,15 @@ contains
     integer :: i, l, m
     ! integer :: nlayer_for_file
     ! complex*8 :: chi_lm, chi_lm_ylm_sum, chi_lm_ylm, chi_lm_ylm_m
-    complex*8 :: del_phi_lm, del_phi_m
-    complex*8 :: y_lm
+    complex*16 :: del_phi_lm, del_phi_m
+    complex*16 :: y_lm
 
     ! TEMPORARY, BEFORE WE HAVE A SETUP FILE WHERE TO PUT THE ROOT OF THOSE NAMES
     ! character :: file_rho_ylm_im*100
     ! character :: file_rho_ylm_re*100
-    real*8, parameter :: GRAV_CST = 6.67408d-11
+    real*8, parameter :: GRAV_CST = 6.67408d-11, R_EARTH = 6371.d3, RHO_AV = 5510.d0
+    real*8, parameter :: PI = 3.1415927
+    real*8 :: ACC_NORM, NON_DIM_GRAV_CST
 
     ! allocate(phi(NR))
 
@@ -116,6 +122,10 @@ contains
     del_phi_sum = 0
     do l = 0,lmax
        del_phi_m = 0
+       ! <SA> DEBUG
+       if (nlayer .eq. 700) then
+          print*,"[compute_delta_phi] l = ", l," kernel = ", kern_grav_nlayer(l)
+       end if
        ! No need to do it here, call it directly from the volumetric integration routine
        ! so we don't do the same computations for each layers.
        ! call compute_kernel_grav()
@@ -126,17 +136,28 @@ contains
           ! Computing here absolute value for rho for a given l and m, used to compute
           ! the integral.
           rho_abs_lm = delta_rho(l,m) * rho_norm(nlayer) + rho_norm(nlayer)
+          ! <SA> DEBUG put all perturbation at 1%
           del_phi_lm = delta_rho(l,m) * rho_norm(nlayer) * kern_grav_nlayer(l)
+          ! del_phi_lm = zexp(cmplx(0,1)*m*lat)
+          ! del_phi_lm = 1
+          ! del_phi_lm = 0.005 * rho_norm(nlayer) * kern_grav_nlayer(l)
           ! sum chi lm over m
           if (m == 0) then
+             print*, l,  m, y_lm
              del_phi_m = del_phi_m + realpart(del_phi_lm * y_lm)
           else
+             print*, l, m, y_lm
              del_phi_m = del_phi_m + 2 *(realpart(del_phi_lm * y_lm))
           end if
        end do
        del_phi_sum = del_phi_sum + del_phi_m
+       del_phi_sum = 1
     end do
-    del_phi_sum = -1 * GRAV_CST * del_phi_sum 
+    ! <SA> Non-dimensionalizing G, as \pi\times G = 1
+    ACC_NORM = (PI * GRAV_CST * RHO_AV * R_EARTH)
+    NON_DIM_GRAV_CST = GRAV_CST / ACC_NORM * RHO_AV * R_EARTH
+    ! del_phi_sum = -NON_DIM_GRAV_CST * del_phi_sum
+    ! del_phi_sum = -1 / PI * del_phi_sum 
     ! phi = phi_zero(nlayer) + chi_lm_ylm_sum
     ! phi = chi_lm_ylm_sum
     ! <SA> DEBUG
