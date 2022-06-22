@@ -138,6 +138,287 @@ contains
     !
   end subroutine compute_volumetric_integral_gravitational_energy
 
+  subroutine compute_volumetric_integral_gravitational_energy_for_kernel(grav_potential, &
+       rho_norm, rad, layer_perturb, l_perturb, m_perturb, value_perturb, &
+       lmax, lmax_model,disc, ndisc, NR)
+
+    use legendre_quadrature
+    implicit none
+    !
+    integer, intent(in) :: NR, ndisc, lmax, lmax_model
+    integer, allocatable, intent(in) :: disc(:)
+    real*8, allocatable, intent(in) :: rad(:), rho_norm(:)
+    ! debug
+    integer, intent(in) :: layer_perturb, l_perturb, m_perturb
+    real*8, intent(in) :: value_perturb
+    !
+    ! real*8, intent(out) :: integral_value
+    real*8, intent(out) :: grav_potential
+    !
+    integer :: kind, order
+    real*8, allocatable :: abs_int(:), w_int(:)
+    real*8 :: a, b, alpha, beta
+    complex*16 :: delta_rho(0:lmax_model,0:lmax_model)
+    complex*16, allocatable :: delta_rho_all_r(:,:,:) !!!
+    ! 
+    integer :: i, j, nlayer, nlayer_r_prime, l, m
+    real*8, allocatable :: integral_lon(:)
+    real*8 :: rho_abs_lm
+    real*8 :: colat, lon
+    real*8 :: integral_lat
+    complex*16 :: rho_abs, y_lm
+    real*8, allocatable :: r_l(:)
+    complex*16 :: integral_r, integral_r_r_prime_lm
+    complex*16 :: del_rho_lm
+    complex*16 :: integral_r_r_prime_l
+    complex*16, allocatable :: integrd_r(:), integrd_lm_r_prime(:)
+    real*8, allocatable :: integrd_r_re(:), integrd_r_im(:)
+    real*8 :: integral_r_re, integral_r_im
+    real*8 :: integral_r_r_prime_lm_re, integral_r_r_prime_lm_im
+    
+    real*8, parameter :: PI = 3.1415927, GRAV_CST = 6.67408d-11
+
+    ! Parameters for the interation rule (move to arg of subroutine eventually)
+    ! order = 3
+    ! kind = 1
+    ! alpha = 0.d0
+    ! beta = 0.d0
+    ! a = -1
+    ! b = 1
+
+    ! Allocation
+    ! allocate(integral_lon(NR))
+    ! allocate(abs_int(order), w_int(order))
+    allocate(r_l(NR))
+    allocate(integrd_r(NR), integrd_lm_r_prime(NR))
+    allocate(integrd_r_re(NR), integrd_r_im(NR))
+
+    r_l(:) = 0.d0
+    integrd_r(:) = 0.d0
+    integrd_lm_r_prime(:) = 0.d0
+    integrd_r_re(:) = 0.d0
+    integrd_r_im(:) = 0.d0
+    grav_potential = cmplx(0.d0,0.d0)
+
+    !
+    ! call construct_rho_map(delta_rho_all_r, 331, 782, lmax_model)
+    ! Major loop in l and m, we moved the summation outside the integral computation
+    integral_r_r_prime_l = cmplx(0.d0,0.d0)
+    do l = l_perturb,l_perturb
+    ! l = l_perturb
+    print*, "Computing l value ", l,"/",lmax
+    integral_r_r_prime_lm = cmplx(0.d0,0.d0)
+    ! do m = -l,l
+    ! do m = -m_perturb,m_perturb,2*m_perturb
+    do m = 0,0
+       print*, "m = ", -m_perturb,m_perturb,2*m_perturb
+          ! Second and final radial integration
+          !do nlayer_r_prime = 331,332
+          do nlayer_r_prime = 2,782
+             ! Initialization for a given layer
+             ! First volume integration, in r' and omega
+             ! Starting at 2 to avoid the singularity at the center, ending right before the crust
+             ! do nlayer = 331, 332
+             do nlayer = layer_perturb,layer_perturb
+                ! get the density perturbation, make a map of rho
+                ! if (nlayer.ge.  .and. nlayer .lt. 782)then
+                   ! call get_delta_rho(delta_rho, nlayer, lmax_model)
+                ! delta_rho(:,:) = delta_rho_all_r(nlayer,:,:)
+                delta_rho(:,:) = cmplx(value_perturb,value_perturb)
+                ! else
+                !    delta_rho(:,:) = cmplx(0.d0,0.d0)
+                ! end if
+                ! print*, "After delta rho"
+                   
+                ! No integration in lat/lon
+                call compute_one_over_r_sph_harm(r_l, rad, nlayer, l, NR)
+                ! print*, "After one over r"               
+                if (l .eq. 0) del_rho_lm = cmplx(rho_norm(nlayer),0)
+                if (m < 0) then
+                   del_rho_lm = (-1.d0)**m * conjg(delta_rho(l,abs(m)))
+                else
+                   del_rho_lm = delta_rho(l,abs(m))
+                end if
+                
+                integrd_r(nlayer) = r_l(nlayer) * conjg(del_rho_lm) * rad(nlayer)**2
+                
+             end do ! nlayer, r'         
+             ! Radial integration
+             integrd_r_re = realpart(integrd_r)
+             integrd_r_im = dimag(integrd_r)
+             call intgrl_disc(integral_r_re, NR,rad(1:NR), disc,ndisc,&
+                  1,NR,integrd_r_re)
+             call intgrl_disc(integral_r_im, NR,rad(1:NR), disc,ndisc,&
+                  1,NR,integrd_r_im)
+             integral_r = cmplx(integral_r_re, integral_r_im)
+
+             if (l .eq. 0) del_rho_lm = cmplx(0,0)
+             
+             integrd_lm_r_prime(nlayer_r_prime) = integral_r * del_rho_lm *&
+                  rho_norm(nlayer_r_prime) * rad(nlayer_r_prime)**2
+          end do
+          
+          integrd_r_re = realpart(integrd_lm_r_prime)
+          integrd_r_im = dimag(integrd_lm_r_prime)
+          call intgrl_disc(integral_r_r_prime_lm_re, NR,rad(1:NR),disc,ndisc, &
+               1,NR,integrd_r_re)
+          call intgrl_disc(integral_r_r_prime_lm_im, NR,rad(1:NR),disc,ndisc, &
+               1,NR,integrd_r_im)
+          integral_r_r_prime_lm = integral_r_r_prime_lm +&
+               cmplx(integral_r_r_prime_lm_re,integral_r_r_prime_lm_im)
+       end do
+       integral_r_r_prime_l = integral_r_r_prime_l + integral_r_r_prime_lm
+    end do
+    grav_potential = realpart(integral_r_r_prime_l)
+    ! 
+    return    
+    !
+  end subroutine compute_volumetric_integral_gravitational_energy_for_kernel
+
+
+  ! subroutine compute_volumetric_integral_gravitational_energy_for_kernel(grav_potential, &
+  !      rho_norm, rad, layer_perturb, l_perturb, m_perturb, value_perturb, &
+  !      lmax, lmax_model,disc, ndisc, NR)
+
+  !   use legendre_quadrature
+  !   implicit none
+  !   !
+  !   integer, intent(in) :: NR, ndisc, lmax, lmax_model
+  !   integer, intent(in) :: layer_perturb, l_perturb, m_perturb
+  !   real*8, intent(in)  :: value_perturb
+  !   integer, allocatable, intent(in) :: disc(:)
+  !   real*8, allocatable, intent(in) :: rad(:), rho_norm(:)
+  !   !
+  !   ! real*8, intent(out) :: integral_value
+  !   real*8, intent(out) :: grav_potential
+  !   !
+  !   integer :: kind, order
+  !   real*8, allocatable :: abs_int(:), w_int(:)
+  !   real*8 :: a, b, alpha, beta
+  !   complex*16 :: delta_rho(0:lmax_model,0:lmax_model)
+  !   complex*16, allocatable :: delta_rho_all_r(:,:,:) !!!
+  !   ! 
+  !   integer :: i, j, nlayer, nlayer_r_prime, l, m
+  !   real*8, allocatable :: integral_lon(:)
+  !   real*8 :: rho_abs_lm
+  !   real*8 :: colat, lon
+  !   real*8 :: integral_lat
+  !   complex*16 :: rho_abs, y_lm
+  !   real*8, allocatable :: r_l(:)
+  !   complex*16 :: integral_r, integral_r_r_prime_lm
+  !   complex*16 :: del_rho_lm
+  !   complex*16 :: integral_r_r_prime_l
+  !   complex*16, allocatable :: integrd_r(:), integrd_lm_r_prime(:)
+  !   real*8, allocatable :: integrd_r_re(:), integrd_r_im(:)
+  !   real*8 :: integral_r_re, integral_r_im
+  !   real*8 :: integral_r_r_prime_lm_re, integral_r_r_prime_lm_im
+    
+  !   real*8, parameter :: PI = 3.1415927, GRAV_CST = 6.67408d-11
+
+  !   ! Parameters for the interation rule (move to arg of subroutine eventually)
+  !   ! order = 3
+  !   ! kind = 1
+  !   ! alpha = 0.d0
+  !   ! beta = 0.d0
+  !   ! a = -1
+  !   ! b = 1
+
+  !   ! Allocation
+  !   ! allocate(integral_lon(NR))
+  !   ! allocate(abs_int(order), w_int(order))
+  !   allocate(r_l(NR))
+  !   allocate(integrd_r(NR), integrd_lm_r_prime(NR))
+  !   allocate(integrd_r_re(NR), integrd_r_im(NR))
+
+  !   r_l(:) = 0.d0
+  !   integrd_r(:) = 0.d0
+  !   integrd_lm_r_prime(:) = 0.d0
+  !   integrd_r_re(:) = 0.d0
+  !   integrd_r_im(:) = 0.d0
+  !   grav_potential = cmplx(0.d0,0.d0)
+
+  !   !
+  !   call construct_rho_map(delta_rho_all_r, 331, 782, lmax_model)
+  !   ! Major loop in l and m, we moved the summation outside the integral computation
+  !   integral_r_r_prime_l = cmplx(0.d0,0.d0)
+  !   ! do l = l_perturb,l_perturb+1
+  !   do l = 0,lmax
+  !      print*, "Computing l value ", l,"/",lmax
+  !      integral_r_r_prime_lm = cmplx(0.d0,0.d0)
+  !      do m = -l,l
+  !      ! do m = -m_perturb,m_perturb,2*m_perturb
+  !      ! do m = m_perturb,m_perturb
+  !         print*, "m = ", m
+  !         ! Second and final radial integration
+  !         !do nlayer_r_prime = 331,332
+  !         do nlayer_r_prime = 2,782
+  !            ! Initialization for a given layer
+  !            ! First volume integration, in r' and omega
+  !            ! Starting at 2 to avoid the singularity at the center, ending right before the crust
+  !            ! do nlayer = 331, 332
+  !            do nlayer = 2, 782
+  !               ! get the density perturbation, make a map of rho
+  !               ! if (nlayer .eq. layer_perturb)then
+  !               if (nlayer .ge. layer_perturb .and. nlayer .lt. layer_perturb+1)then
+  !                  ! call get_delta_rho(delta_rho, nlayer, lmax_model)
+  !                  delta_rho(:,:) = delta_rho_all_r(nlayer,:,:)
+  !                  ! CHECK THAT IT IS THE CORRECT VALUE FOR THE MATRIX
+  !                  ! delta_rho(l_perturb,m_perturb) = cmplx(value_perturb, value_perturb)
+  !                  ! print*, layer_perturb, delta_rho(l_perturb, m_perturb)
+  !               else
+  !                  delta_rho(:,:) = cmplx(0.d0,0.d0)
+  !               end if
+  !               ! print*, "After delta rho"
+                   
+  !               ! No integration in lat/lon
+  !               call compute_one_over_r_sph_harm(r_l, rad, nlayer, l, NR)
+  !               ! print*, "After one over r"               
+  !               if (l .eq. 0) del_rho_lm = cmplx(rho_norm(nlayer),0)
+  !               if (m < 0) then
+  !                  del_rho_lm = (-1.d0)**m * conjg(delta_rho(l,abs(m)))
+  !               else
+  !                  del_rho_lm = delta_rho(l,abs(m))
+  !               end if
+                
+  !               integrd_r(nlayer) = r_l(nlayer) * conjg(del_rho_lm) * rad(nlayer)**2
+                
+  !            end do ! nlayer, r'         
+  !            ! Radial integration
+  !            integrd_r_re = realpart(integrd_r)
+  !            integrd_r_im = dimag(integrd_r)
+  !            call intgrl_disc(integral_r_re, NR,rad(1:NR), disc,ndisc,&
+  !                 1,NR,integrd_r_re)
+  !            call intgrl_disc(integral_r_im, NR,rad(1:NR), disc,ndisc,&
+  !                 1,NR,integrd_r_im)
+  !            integral_r = cmplx(integral_r_re, integral_r_im)
+
+  !            if (l .eq. 0) del_rho_lm = cmplx(0,0)
+             
+  !            integrd_lm_r_prime(nlayer_r_prime) = integral_r * del_rho_lm *&
+  !                 rho_norm(nlayer_r_prime) * rad(nlayer_r_prime)**2
+  !         end do
+          
+  !         integrd_r_re = realpart(integrd_lm_r_prime)
+  !         integrd_r_im = dimag(integrd_lm_r_prime)
+  !         call intgrl_disc(integral_r_r_prime_lm_re, NR,rad(1:NR),disc,ndisc, &
+  !              1,NR,integrd_r_re)
+  !         call intgrl_disc(integral_r_r_prime_lm_im, NR,rad(1:NR),disc,ndisc, &
+  !              1,NR,integrd_r_im)
+  !         integral_r_r_prime_lm = integral_r_r_prime_lm +&
+  !              cmplx(integral_r_r_prime_lm_re,integral_r_r_prime_lm_im)
+  !      end do
+  !      integral_r_r_prime_l = integral_r_r_prime_l + integral_r_r_prime_lm
+  !      ! DEBUG
+  !      print*, integral_r_r_prime_l
+  !   end do
+  !   grav_potential = realpart(integral_r_r_prime_l)
+  !   ! 
+  !   return    
+  !   !
+  ! end subroutine compute_volumetric_integral_gravitational_energy_for_kernel
+
+
+  
   ! <SA> THIS SUBROUTINE COMPUTES THE VOLUMIC INTEGRAL OF THE GRAVITATIONAL POTENTIAL ONLY
   ! Because the gravitational potential is a 3D value, we need to call a function to calculate
   ! it at each lat/lon.

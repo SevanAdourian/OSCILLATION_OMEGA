@@ -1,6 +1,5 @@
 module moment_of_inertia
   !
-  use legendre_quadrature
   use discontinuities
   use gravitational_potential
   !
@@ -8,160 +7,64 @@ module moment_of_inertia
   !
 contains
   !
-  subroutine compute_moment_of_inertia(moment_of_inertia, rho_norm, &
-       rad, layer_min, layer_max, lmax, lmax_model, disc, ndisc, NR)
-
-    use legendre_quadrature
+  ! eq. (12), Buffett, 1996
+  subroutine compute_equatorial_moment_of_inertia_IC(moment_of_inertia, rho_norm, rad, &
+       delta_rho, delta_d, disc, ndisc, N_CMB, N_ICB, NR, l, m, flag_fluid, kern_rho, kern_topo)
+    !
     implicit none
     !
-    integer, intent(in) :: NR, ndisc, lmax, lmax_model, layer_min, layer_max
+    complex*16, allocatable, intent(in) :: delta_rho(:), delta_d(:)
+    real*8, allocatable, intent(in) :: rho_norm(:), rad(:)
     integer, allocatable, intent(in) :: disc(:)
-    real*8, allocatable, intent(in) :: rad(:), rho_norm(:)
+    integer, intent(in) :: ndisc, NR, N_ICB, N_CMB, l, m
+    logical, intent(in) :: flag_fluid, kern_rho, kern_topo
     !
     real*8, intent(out) :: moment_of_inertia
     !
-    complex*16 :: delta_rho(0:lmax_model,0:lmax_model)
-    complex*16, allocatable :: delta_rho_all_r(:,:,:)
+    real*8, allocatable :: epsilon_a_all(:), epsilon_a_prime(:), integrd(:)
+    real*8, allocatable :: s1(:), s2(:), s3(:)
+    real*8 ::epsilon_a, rho_fluid_core, prefactor
+    integer :: i
+
+    real*8, parameter :: PI = 3.1415926535
     !
-    integer :: kind, order
-    real*8, allocatable :: abs_int(:), w_int(:)
-    !
-    integer :: i, j, nlayer, l, m, number_of_layers
-    real*8 :: a, b, alpha, beta
-    real*8, allocatable :: integral_lon(:), radial_integrd(:)
-    real*8 :: lat, lon
-    real*8 :: radial_integrl_1, integral_lat, integrd
-    real*8 :: moment_of_inertia_hetero, moment_of_inertia_radial
-    ! 
-    real*8, parameter :: PI = 3.1415927
-
-    ! Parameters for the integration rule (move to arg of subroutine eventually - no need
-    ! it just has to depend on l <SA>)
-    order = (6)
-    kind = 1
-    alpha = 0.d0
-    beta = 0.d0
-    a = -1
-    b = 1
-
-    ! Compute knots and weights for the Gauss-Legendre quadrature
-    number_of_layers = layer_max - layer_min + 1
-    allocate(abs_int(order), w_int(order))
-    call cgqf( order, kind, alpha, beta, a, b, abs_int, w_int)
-
-    ! Initialization
-    allocate(radial_integrd(number_of_layers))
-    allocate(integral_lon(NR))
-    integral_lon(:) = 0.d0
-    radial_integrd(:) = 0.d0
-    moment_of_inertia = 0.d0
-
-    ! <SA> DEBUG delta_rho = 0.d0
-    delta_rho(:,:) = 0.d0
-    ! </SA>
-    ! Computation of the kernels for all l.
-    ! call compute_kernel_moi(kernel_moi_all_l, rho_norm, rad, lmax, NR, ndisc, disc)
-    ! <SA> DEBUG LATLON
-    ! open(41,file="lat_lon.txt",form="formatted",status="replace")
-
-    ! Compute 1D part of moment of inertia
-    radial_integrd(:) = rho_norm(layer_min:layer_max) * rad(layer_min:layer_max)**4
-    call intgrl_disc(radial_integrl_1,NR,rad(1:NR), disc,ndisc,layer_min,layer_max, &
-         radial_integrd(1:NR))
-    moment_of_inertia_radial = radial_integrl_1 * 8.d0 * PI / 3.d0
-
-    call construct_rho_map(delta_rho_all_r, 331, 782, lmax_model)
-    ! Integration on the volume per se
-    if (layer_max > 331) then
-       do nlayer = 331, layer_max
-          ! Starting above the core mantle boundary as the core is 1D,
-          ! hence making delta_rho = 0
-          
-          ! Get the density perturbation
-          call get_delta_rho(delta_rho, nlayer, lmax_model)
-          
-          print*, '[compute_volume_integral] layer', nlayer,'/',NR
-          ! Loop on longitude between -1 and 1 (transformation)
-          do j = 1, 2*order
-             lon = (j * PI / order) ! Make things cleaner here
-             integral_lat = 0.d0
-             do i = 1, order
-                ! transform into geographical latitude (radians)
-                lat = acos(abs_int(i))
-                ! Compute integrand of moment of inertia, summed over l and m.
-                call compute_moi_hetero(integrd, rho_norm, rad, delta_rho, &
-                     lmax, lmax_model, nlayer, lat, lon, NR)
-                integral_lat = integral_lat + w_int(i) * integrd
-             end do ! latitude
-             ! Sum over all latitudes of integration
-             integral_lon(nlayer) = integral_lon(nlayer) + integral_lat * (PI/order) 
-          end do ! longitude
-          ! Normalize the surface integral and multiply by dr**2 to prepare the radial integration
-          ! integral_lon(nlayer) = integral_lon(nlayer)
-          print*, "[compute_volumetric_integral.f90]", integral_lon(nlayer)
-       end do ! nlayer
-       ! <SA> DEBUG
-       close(41)
-       ! Radial integration
-       call intgrl_disc(moment_of_inertia_hetero,NR,rad(1:NR), disc,ndisc,&
-            layer_min,layer_max,integral_lon(1:NR))
-    else
-       moment_of_inertia_hetero = 0.d0
-    end if
-    moment_of_inertia = moment_of_inertia_radial + moment_of_inertia_hetero
+    allocate(integrd(NR), epsilon_a_all(NR), epsilon_a_prime(NR))
+    integrd(:)         = 0.d0
+    epsilon_a_all(:)   = 0.d0
+    epsilon_a_prime(:) = 0.d0
     
-    print*, "[compute_volumetric_integral.f90]",moment_of_inertia, moment_of_inertia_radial, &
-         moment_of_inertia_hetero
-
-    deallocate(integral_lon)
-    deallocate(radial_integrd)
-    deallocate(abs_int, w_int)
-
-    return
-
-  end subroutine compute_moment_of_inertia
-
-  subroutine compute_moi_hetero(integrd_sum, rho, r, delta_rho, &
-       lmax, lmax_model, nlayer, lat, lon, NR)
-    !
-    implicit none
-    !
-    integer, intent(in) :: lmax, nlayer, NR, lmax_model
-    real*8, intent(in)  :: lat, lon
-    real*8, allocatable, intent(in) :: rho(:), r(:)
-    complex*16, intent(in) :: delta_rho(0:lmax_model,0:lmax_model)
-    !
-    real*8, intent(out) :: integrd_sum
-    ! 
-    complex*16 :: integrd_lm
-    complex*16 :: y_lm
-    real*8 :: integrd_m
-    integer :: l, m
-    
-    
-    integrd_sum = 0
-    do l = 0,lmax
-       integrd_m = 0
-       ! No need to do it here, call it directly from the volumetric integration routine
-       ! so we don't do the same computations for each layers.
-       ! call compute_kernel_grav()
-       do m = 0,l
-          ! MAYBE MOVE THIS TO A SEPARATE SUBROUTINE IN ORDER TO USE IT TO EXPAND RHO AS WELL
-          ! Expand in spatial domain from spherical harmonics
-          call ylm(lat, lon, l, m, y_lm)
-          ! Computing here absolute value for rho for a given l and m, used to compute
-          ! the integral.
-          integrd_lm = delta_rho(l,m) * rho(nlayer) * r(nlayer)**4 * sin(lat)**3
-          ! sum chi lm over m
-          if (m == 0) then
-             integrd_m = integrd_m + realpart(integrd_lm * y_lm)
-          else
-             integrd_m = integrd_m + 2 *(realpart(integrd_lm * y_lm))
-          end if
-       end do
-       integrd_sum = integrd_sum + integrd_m
+    ! DEBUG
+    ! open(1,file='epsilon_a.txt')
+    rho_fluid_core = rho_norm(N_ICB) ! N_ICB? N_ICB+1?
+    do i = 2,NR
+       call compute_epsilon(epsilon_a, l, m, rad, rho_norm, delta_rho, delta_d, &
+            i, ndisc, disc, N_CMB, NR, kern_rho, kern_topo)
+       epsilon_a_all(i) = epsilon_a * rad(i)**5
     end do
     !
-  end subroutine compute_moi_hetero
-  !
+    call deriv(epsilon_a_all, epsilon_a_prime, NR, rad, ndisc, disc, s1, s2, s3)
+    !
+    ! Element by element multiplication, depending on fluid or not
+    if (flag_fluid .eqv. .true.) then
+       integrd(:) = epsilon_a_prime(:) * rho_fluid_core
+    else
+       integrd(:) = epsilon_a_prime(:) * rho_norm(:)
+    end if
+    !
+    ! DEBUG
+    ! do i = 1,N_ICB-1
+    !    write(1,*) i, N_ICB, epsilon_a_all(i), epsilon_a_prime(i), rho_norm(i), integrd(i)
+    ! enddo
+    !
+    ! close(1)
+    !
+    call intgrl_disc(moment_of_inertia, NR, rad, disc, ndisc, &
+         1, N_ICB-1, integrd)
+    !
+    prefactor = 8.d0*PI/15.d0
+    moment_of_inertia = prefactor * moment_of_inertia
+    return
+    !
+  end subroutine compute_equatorial_moment_of_inertia_IC
+  
 end module moment_of_inertia
