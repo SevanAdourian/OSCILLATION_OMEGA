@@ -72,8 +72,8 @@ contains
     ! complex*16, intent(out) :: delta_rho_mat(0:lmax_model,0:lmax_model)
     complex*16, allocatable, intent(out) :: delta_rho_mat(:,:)
     ! 
-    character :: fname_rho_ylm_im*100
-    character :: fname_rho_ylm_re*100
+    character(len=100) :: fname_rho_ylm_im
+    character(len=100) :: fname_rho_ylm_re
     ! 
     integer :: ii, nlayer_for_file
     real*8  :: mat_im(0:lmax_model,0:lmax_model), mat_re(0:lmax_model,0:lmax_model)
@@ -108,7 +108,8 @@ contains
     return
   end subroutine get_delta_rho_s20rts
 
-  subroutine get_delta_rho(delta_rho_mat, fname, layer_pert, value_pert, NR, kernel_or_not)
+  subroutine get_delta_rho(delta_rho_mat, fname, layer_pert_start, layer_pert_end, &
+       value_pert, NR, kernel_or_not)
     !---------------------------------------
     !
     ! reads the rho perturbation due to 3D
@@ -122,15 +123,15 @@ contains
     ! </SA>
     implicit none
     !
-    character, intent(in) :: fname*100
-    integer, intent(in) :: NR, layer_pert
+    character(len=100), intent(in) :: fname
+    integer, intent(in) :: NR, layer_pert_start, layer_pert_end
     real*8, intent(in) :: value_pert
     logical, intent(in) :: kernel_or_not
     !
     complex*16, allocatable, intent(out) :: delta_rho_mat(:)
     ! 
     ! 
-    integer :: ii
+    integer :: ii, layer_mid
     real*8, allocatable  :: mat_im(:), mat_re(:)
     !
     allocate(delta_rho_mat(NR), mat_re(NR), mat_im(NR))
@@ -140,19 +141,30 @@ contains
     ! as physically, delta_rho(0,0) should always be 0 as it would change the mass of the
     ! Earth otherwise.
     !
-    delta_rho_mat = cmplx(mat_re,mat_im)
-    if (kernel_or_not) then
-       delta_rho_mat(:) = cmplx(0,0)
-       delta_rho_mat(layer_pert) = cmplx(value_pert, 0)
-    else
-       open(1,file=fname,status='old',form='formatted',action='read')
-       do ii = 1,NR
-          read(1,*) mat_re(ii), mat_im(ii)
-       end do
-    endif
+        ! if (kernel_or_not) then
+    !    delta_rho_mat(:) = cmplx(0,0)
+    !    ! delta_rho_mat(layer_pert_start:layer_pert_end) = cmplx(value_pert, 0)
+    !    layer_mid = (layer_pert_start+layer_pert_end)/2
+    !    print*, layer_mid
+    !    ! delta_rho_mat(layer_mid-3:layer_mid+3) = cmplx(value_pert, 0)
+    ! else
+    !    open(1,file=fname,status='old',form='formatted',action='read')
+    !    do ii = 1,NR
+    !       read(1,*) mat_re(ii), mat_im(ii)
+    !    end do
+    ! endif
+
+    open(1,file=fname,status='old',form='formatted',action='read')
+    do ii = 1,NR
+       read(1,*) mat_re(ii), mat_im(ii)
+    end do
     !
     close(1)
     !
+    delta_rho_mat = cmplx(mat_re,mat_im)
+    !
+    ! print*, layer_pert_start, layer_pert_end
+    ! print*, delta_rho_mat(layer_pert_start:layer_pert_end)
     deallocate(mat_re)
     deallocate(mat_im)
     !
@@ -168,7 +180,7 @@ contains
     !
     implicit none
     !
-    character, intent(in) :: fname*100
+    character(len=100), intent(in) :: fname
     integer, intent(in) :: ndisc, disc_pert
     real*8, intent(in) :: value_pert
     logical, intent(in) :: kernel_or_not
@@ -180,20 +192,23 @@ contains
     !
     allocate(delta_d_mat(ndisc), mat_re(ndisc), mat_im(ndisc))
 
-    delta_d_mat = cmplx(mat_re,mat_im)
-    if (kernel_or_not) then
-       delta_d_mat(:) = cmplx(0,0)
-       delta_d_mat(disc_pert) = cmplx(value_pert, 0)
-    else
-       open(2,file=fname,status='old',form='formatted',action='read')
-       do ii = 1,ndisc
-          read(2,*) mat_re(ii), mat_im(ii)
-       end do
-       delta_d_mat = cmplx(mat_re, mat_im)
-    endif
-
-    ! delta_d_mat(:) = cmplx(0,0)
-       
+    ! if (kernel_or_not) then
+    !    delta_d_mat(:) = cmplx(0,0)
+    !    delta_d_mat(disc_pert) = cmplx(value_pert, 0)
+    ! else
+    !    open(2,file=fname,status='old',form='formatted',action='read')
+    !    do ii = 1,ndisc
+    !       read(2,*) mat_re(ii), mat_im(ii)
+    !    end do
+    !    delta_d_mat = cmplx(mat_re, mat_im)
+    ! endif
+    
+    open(2,file=fname,status='old',form='formatted',action='read')
+    do ii = 1,ndisc
+       read(2,*) mat_re(ii), mat_im(ii)
+    end do
+    delta_d_mat = cmplx(mat_re, mat_im)
+    
     close(2)
     !
     deallocate(mat_re)

@@ -36,14 +36,12 @@ add_fortran_library(legendre_quadrature SHARED src/legendre_quadrature.f90)
 add_fortran_library(read_model SHARED src/read_model.f90)
 add_fortran_library(ylm SHARED src/ylm.f90)
 add_fortran_library(gravitational_potential SHARED src/compute_gravitational_potential.f90)
-add_fortran_library(volumetric_integral SHARED src/compute_volumetric_integral.f90)
 add_fortran_library(moment_of_inertia SHARED src/compute_moment_of_inertia.f90)
 
 target_link_libraries(gravitational_potential discontinuities ylm read_model)
-target_link_libraries(volumetric_integral gravitational_potential legendre_quadrature)
 target_link_libraries(moment_of_inertia gravitational_potential legendre_quadrature)
 
 add_executable(${TARGET} ${SOURCE_FILES})
-target_link_libraries(${TARGET} volumetric_integral gravitational_potential moment_of_inertia)
+target_link_libraries(${TARGET} gravitational_potential moment_of_inertia)
 
 set_target_properties(${TARGET} PROPERTIES LINKER_LANGUAGE Fortran)

@@ -73,7 +73,7 @@ contains
           sum_disc_ind = diff_rho * (r_nat**l)/(rad(disc(i))**(l+1)) * del_d(j)
        end if
        sum_disc = sum_disc + sum_disc_ind
-       print*, sum_disc_ind
+       ! print*, sum_disc_ind
     end do
     !
     ! Summing all contributions
@@ -87,8 +87,6 @@ contains
        epsilon_l_m = prefactor * (integrl1_re + integrl1_im + integrl2_re + integrl2_im + sum_disc)
     end if
 
-    print*, epsilon_l_m
-    !
     ! write(111,*) ind_r, epsilon_l_m, integrl1_re, integrl1_im, integrl2_re, integrl2_im, rho(ind_r), r_nat
     ! if (ind_r .eq. 400) close(112)
     deallocate(integrd1_re,integrd2_re,integrd1_im,integrd2_im)

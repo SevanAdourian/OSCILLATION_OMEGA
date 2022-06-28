@@ -1,0 +1,23 @@
+# Paths for files:
+path_to_bin: '/Users/sevan/Documents/PhD/Research/OMEGA_PHD/scripts/FORTRAN/OMEGA_OSCILLATION_NEW/build/oscillation_omega'
+1d_model_base_file: '../data/make_s20rts/isoprem808.md'
+1d_model_for_run: './isoprem808_for_run.dat'
+3d_delta_rho: './delta_rho.dat'
+3d_delta_topo: './delta_topo.dat'
+
+# flags for kernel computation
+kern_rho: '.false.'
+kern_topo: '.true.'
+
+# If kern_rho is activated, read file at which nodes
+kern_nodes_file: 'nodes_compute_kernel.dat'
+
+# Values for kernel computations:
+rho_perturb: 0.01 # in % of delta rho
+topo_perturb: 1 # km
+nb_disc: 12
+
+# Outputs
+kernel_rho_file: './kernel_rho.txt'
+kernel_topo_file: './kernel_topo.txt'
+output_oscillation: './out1'
