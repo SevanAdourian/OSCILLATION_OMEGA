@@ -41,17 +41,15 @@ contains
     do i = 2,NR
        rho_layer = rho(i)
        if (i >= N_CMB) then
-          ! if (i <= ind_r) then ! <= or < ?
              integrd1_re(i) = realpart(del_rho(i)) * rho_layer *&
                   ((rad(i)**(l+2))/(rad(ind_r)**(l+1)))
              integrd1_im(i) = imagpart(del_rho(i)) * rho_layer *&
                   ((rad(i)**(l+2))/(rad(ind_r)**(l+1)))
-          ! else
+
              integrd2_re(i) = realpart(del_rho(i)) * rho_layer *&
                   ((rad(ind_r)**(l))/(rad(i)**(l-1)))
              integrd2_im(i) = imagpart(del_rho(i)) * rho_layer *&
                   ((rad(ind_r)**(l))/(rad(i)**(l-1)))
-          ! end if
        end if
     end do
     !
@@ -65,26 +63,37 @@ contains
          ind_r+1, NR, integrd2_im)
 
     ! Summing discontinuities contributions
-    do j = 2,ndisc-1
-       diff_rho = rho(disc(j+1))-rho(disc(j))
-       if (r_nat .lt. rad(disc(j))) then
-          sum_disc_ind = diff_rho * (rad(disc(j))**l)/(r_nat**(l+1)) * del_d(j)
-       else
-          sum_disc_ind = diff_rho * (r_nat**l)/(rad(disc(i))**(l+1)) * del_d(j)
-       end if
-       sum_disc = sum_disc + sum_disc_ind
+    if (.not. kern_rho) then
+       do j = 2,ndisc-1
+          diff_rho = rho(disc(j+1))-rho(disc(j))
+          print*, diff_rho
+          sum_disc_ind = 0
+          if (r_nat .gt. rad(disc(j))) then
+             sum_disc_ind = diff_rho * (rad(disc(j))**l)/(r_nat**(l+1)) * del_d(j)
+          else
+             sum_disc_ind = diff_rho * (r_nat**l)/(rad(disc(j))**(l+1)) * del_d(j)
+          end if
+          sum_disc = sum_disc + sum_disc_ind
+          print*, 'coucou'
+          print*, diff_rho, rad(disc(j)), r_nat, del_d(j), sum_disc_ind, sum_disc
+          ! print*, sum_disc
        ! print*, sum_disc_ind
-    end do
+       end do
+    end if
     !
     ! Summing all contributions
     ! sum_disc = 0.d0
-    prefactor = 1 / (rho(ind_r)*r_nat**l)
+    prefactor = 1.d0 / (rho(ind_r)*r_nat**l)
     if (kern_rho .and. .not. kern_topo) then
-       epsilon_l_m = prefactor * (integrl1_re + integrl1_im + integrl2_re + integrl2_im)
+       ! print*, integrl1_re, integrl1_im, integrl2_re, integrl2_im
+       epsilon_l_m = prefactor * (integrl1_re + integrl1_im +&
+            integrl2_re + integrl2_im)
     elseif (kern_topo .and. .not. kern_rho) then
        epsilon_l_m = prefactor * sum_disc
     elseif ( .not. kern_topo .and. .not. kern_rho) then
-       epsilon_l_m = prefactor * (integrl1_re + integrl1_im + integrl2_re + integrl2_im + sum_disc)
+       print*, integrl1_re, integrl1_im, integrl2_re, integrl2_im, sum_disc
+       epsilon_l_m = prefactor * (integrl1_re + integrl1_im + &
+            integrl2_re + integrl2_im + sum_disc)
     end if
 
     ! write(111,*) ind_r, epsilon_l_m, integrl1_re, integrl1_im, integrl2_re, integrl2_im, rho(ind_r), r_nat
@@ -134,12 +143,14 @@ contains
     ! do i = N_ICB,NR
     do i = 2,NR
        integrd(i) = epsilon_a_prime(i)*rho(i)
+       ! print*, epsilon_a_all(i), epsilon_a_prime(i), integrd(i)
     end do
     !
     ! Integration over the whole radius
     call intgrl_disc(rho_epsilon_average, NR, rad, disc, ndisc, &
          N_ICB, NR, integrd)
     !
+    ! print*, epsilon_a_all
     deallocate(epsilon_a_all, epsilon_a_prime, integrd)
     return
     !

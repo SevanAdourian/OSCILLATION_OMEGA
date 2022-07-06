@@ -108,8 +108,7 @@ contains
     return
   end subroutine get_delta_rho_s20rts
 
-  subroutine get_delta_rho(delta_rho_mat, fname, layer_pert_start, layer_pert_end, &
-       value_pert, NR, kernel_or_not)
+  subroutine get_delta_rho(delta_rho_mat, fname, rho, NR, kernel_or_not)
     !---------------------------------------
     !
     ! reads the rho perturbation due to 3D
@@ -124,36 +123,24 @@ contains
     implicit none
     !
     character(len=100), intent(in) :: fname
-    integer, intent(in) :: NR, layer_pert_start, layer_pert_end
-    real*8, intent(in) :: value_pert
+    integer, intent(in) :: NR
+    real*8, allocatable, intent(in) :: rho(:)
     logical, intent(in) :: kernel_or_not
     !
     complex*16, allocatable, intent(out) :: delta_rho_mat(:)
     ! 
-    ! 
-    integer :: ii, layer_mid
+    integer :: ii
     real*8, allocatable  :: mat_im(:), mat_re(:)
+    real*8, parameter :: PI = 3.1415927, R_EARTH = 6371.d3
+    real*8, parameter :: RHO_AV = 5510.d0, GRAV_CST = 6.67408d-11
+    real*8 :: Y22_fac
     !
     allocate(delta_rho_mat(NR), mat_re(NR), mat_im(NR))
+    delta_rho_mat(:) = cmplx(0.d0, 0.d0)
+    mat_re(:) = 0.d0
+    mat_im(:) = 0.d0
 
-    ! Here we correct for the fact that delta_rho(0,0) in the files is supposed to be 0
-    ! but it is not because of some artifacts of S20RTS. Should be ok with any other model
-    ! as physically, delta_rho(0,0) should always be 0 as it would change the mass of the
-    ! Earth otherwise.
-    !
-        ! if (kernel_or_not) then
-    !    delta_rho_mat(:) = cmplx(0,0)
-    !    ! delta_rho_mat(layer_pert_start:layer_pert_end) = cmplx(value_pert, 0)
-    !    layer_mid = (layer_pert_start+layer_pert_end)/2
-    !    print*, layer_mid
-    !    ! delta_rho_mat(layer_mid-3:layer_mid+3) = cmplx(value_pert, 0)
-    ! else
-    !    open(1,file=fname,status='old',form='formatted',action='read')
-    !    do ii = 1,NR
-    !       read(1,*) mat_re(ii), mat_im(ii)
-    !    end do
-    ! endif
-
+    Y22_fac = (1.d0/4.d0) * (15.d0/(2.d0*PI))**0.5
     open(1,file=fname,status='old',form='formatted',action='read')
     do ii = 1,NR
        read(1,*) mat_re(ii), mat_im(ii)
@@ -161,6 +148,11 @@ contains
     !
     close(1)
     !
+    print*, Y22_fac
+    mat_re(:) = mat_re(:) * rho(:) * Y22_fac
+    mat_im(:) = mat_im(:) * rho(:) * Y22_fac
+    ! mat_re(:) = mat_re(:) / Y22_fac
+    ! mat_im(:) = mat_im(:) / Y22_fac
     delta_rho_mat = cmplx(mat_re,mat_im)
     !
     ! print*, layer_pert_start, layer_pert_end
@@ -172,8 +164,7 @@ contains
   end subroutine get_delta_rho
 
 
-  subroutine get_delta_topography(delta_d_mat, fname, disc_pert, value_pert, &
-       ndisc, kernel_or_not)
+  subroutine get_delta_topography(delta_d_mat, fname, ndisc, kernel_or_not)
     !---------------------------------------
     !
     ! reads the topography perturbation at the discontinuities specified in a 1D model
@@ -181,32 +172,25 @@ contains
     implicit none
     !
     character(len=100), intent(in) :: fname
-    integer, intent(in) :: ndisc, disc_pert
-    real*8, intent(in) :: value_pert
+    integer, intent(in) :: ndisc
     logical, intent(in) :: kernel_or_not
     !
     complex*16, allocatable, intent(out) :: delta_d_mat(:)
     ! 
     integer :: ii
     real*8, allocatable  :: mat_im(:), mat_re(:)
+    real*8 :: Y22_fac
+    real*8, parameter :: PI = 3.1415927, R_EARTH = 6371.d3
     !
     allocate(delta_d_mat(ndisc), mat_re(ndisc), mat_im(ndisc))
 
-    ! if (kernel_or_not) then
-    !    delta_d_mat(:) = cmplx(0,0)
-    !    delta_d_mat(disc_pert) = cmplx(value_pert, 0)
-    ! else
-    !    open(2,file=fname,status='old',form='formatted',action='read')
-    !    do ii = 1,ndisc
-    !       read(2,*) mat_re(ii), mat_im(ii)
-    !    end do
-    !    delta_d_mat = cmplx(mat_re, mat_im)
-    ! endif
-    
+    Y22_fac = (1.d0/4.d0) * (15.d0/(2.d0*PI))**0.5
     open(2,file=fname,status='old',form='formatted',action='read')
     do ii = 1,ndisc
        read(2,*) mat_re(ii), mat_im(ii)
     end do
+    mat_re(:) = (mat_re(:) * 1.d3 / R_EARTH) * Y22_fac
+    mat_im(:) = (mat_im(:) * 1.d3 / R_EARTH) * Y22_fac
     delta_d_mat = cmplx(mat_re, mat_im)
     
     close(2)

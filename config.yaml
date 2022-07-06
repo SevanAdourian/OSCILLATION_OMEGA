@@ -7,17 +7,23 @@ path_to_bin: '/Users/sevan/Documents/PhD/Research/OMEGA_PHD/scripts/FORTRAN/OMEG
 
 # flags for kernel computation
 kern_rho: '.false.'
-kern_topo: '.true.'
+kern_topo: '.false.'
 
 # If kern_rho is activated, read file at which nodes
 kern_nodes_file: 'nodes_compute_kernel.dat'
 
-# Values for kernel computations:
-rho_perturb: 0.01 # in % of delta rho
+# Values for kernel computations (used only if kern_rho or kern_topo are set to .true.):
+rho_perturb: 10 # in % of delta rho
 topo_perturb: 1 # km
-nb_disc: 12
+nb_disc: 13
+
+# If normal run
+height_LLSVP: 350 # in km
+max_perturbation_rho: 5 # in percent
+max_perturbation_topo: 5 # in km
 
 # Outputs
 kernel_rho_file: './kernel_rho.txt'
 kernel_topo_file: './kernel_topo.txt'
 output_oscillation: './out1'
+output_fortran: './fortran_oscillation.yaml'
